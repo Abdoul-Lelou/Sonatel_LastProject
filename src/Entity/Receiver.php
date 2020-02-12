@@ -61,6 +61,12 @@ class Receiver
      */
     private $transaction;
 
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\User", inversedBy="receivers")
+     * @ORM\JoinColumn(nullable=false)
+     */
+    private $user_id;
+
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
@@ -165,6 +171,18 @@ class Receiver
     public function setTransaction(?Transaction $transaction): self
     {
         $this->transaction = $transaction;
+
+        return $this;
+    }
+
+    public function getUserId(): ?User
+    {
+        return $this->user_id;
+    }
+
+    public function setUserId(?User $user_id): self
+    {
+        $this->user_id = $user_id;
 
         return $this;
     }

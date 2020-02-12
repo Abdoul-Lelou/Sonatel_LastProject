@@ -60,6 +60,12 @@ class Sender
      */
     private $transaction_id;
 
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\User", inversedBy="senders")
+     * @ORM\JoinColumn(nullable=false)
+     */
+    private $user_id;
+
 
     
 
@@ -174,6 +180,18 @@ class Sender
         if ($transaction_id->getSenderId() !== $newSender_id) {
             $transaction_id->setSenderId($newSender_id);
         }
+
+        return $this;
+    }
+
+    public function getUserId(): ?User
+    {
+        return $this->user_id;
+    }
+
+    public function setUserId(?User $user_id): self
+    {
+        $this->user_id = $user_id;
 
         return $this;
     }

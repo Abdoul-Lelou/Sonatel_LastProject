@@ -65,12 +65,24 @@ class User implements AdvancedUserInterface
      * @ORM\OneToMany(targetEntity="App\Entity\Compte", mappedBy="user")
      */
     private $comptes;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Sender", mappedBy="user_id")
+     */
+    private $senders;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Receiver", mappedBy="user_id")
+     */
+    private $receivers;
     
 
     public function __construct()
     {
         $this->depots = new ArrayCollection();
         $this->comptes = new ArrayCollection();
+        $this->senders = new ArrayCollection();
+        $this->receivers = new ArrayCollection();
        
     }
 
@@ -270,6 +282,68 @@ class User implements AdvancedUserInterface
             // set the owning side to null (unless already changed)
             if ($compte->getUser() === $this) {
                 $compte->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Sender[]
+     */
+    public function getSenders(): Collection
+    {
+        return $this->senders;
+    }
+
+    public function addSender(Sender $sender): self
+    {
+        if (!$this->senders->contains($sender)) {
+            $this->senders[] = $sender;
+            $sender->setUserId($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSender(Sender $sender): self
+    {
+        if ($this->senders->contains($sender)) {
+            $this->senders->removeElement($sender);
+            // set the owning side to null (unless already changed)
+            if ($sender->getUserId() === $this) {
+                $sender->setUserId(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Receiver[]
+     */
+    public function getReceivers(): Collection
+    {
+        return $this->receivers;
+    }
+
+    public function addReceiver(Receiver $receiver): self
+    {
+        if (!$this->receivers->contains($receiver)) {
+            $this->receivers[] = $receiver;
+            $receiver->setUserId($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReceiver(Receiver $receiver): self
+    {
+        if ($this->receivers->contains($receiver)) {
+            $this->receivers->removeElement($receiver);
+            // set the owning side to null (unless already changed)
+            if ($receiver->getUserId() === $this) {
+                $receiver->setUserId(null);
             }
         }
 

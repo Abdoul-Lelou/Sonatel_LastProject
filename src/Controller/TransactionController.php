@@ -7,6 +7,7 @@ use App\Entity\Transaction;
 use App\Repository\SenderRepository;
 use App\Repository\TarifRepository;
 use App\Entity\Receiver;
+use App\Entity\User;
 use App\Repository\TransactionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,6 +48,11 @@ class TransactionController extends AbstractController
                                     TransactionRepository $transactionRepository)
     {
      
+        //RECUPERER UTILISATEUR CONNECTE
+        $user=$this->getUser();
+        $id_user=$user->getId();
+        $userCreator = $entityManager->getRepository(User::class)->find($id_user);
+
         $values=json_decode($request->getContent());
         
         if (isset($values->montant,$values->client,$values->typePiece,$values->numeroPiece,$values->tel)) 
@@ -64,6 +70,7 @@ class TransactionController extends AbstractController
             $sender->setClient($values->client);
             $sender->setDate(new  \DateTime("now"));
             $sender->setCommission($frais*10/100);
+            $sender->setUserId($userCreator);
 
             $entityManager->persist($sender);
             $entityManager->flush();
@@ -107,6 +114,11 @@ class TransactionController extends AbstractController
     public function receiver(Request $request,EntityManagerInterface $entityManager,SenderRepository $senderRepository,
                                     TransactionRepository $transactionRepository)
     {
+        //RECUPERER UTILISATEUR CONNECTE
+        $user=$this->getUser();
+        $id_user=$user->getId();
+        $userCreator = $entityManager->getRepository(User::class)->find($id_user);
+
         $values=json_decode($request->getContent());
 
         if (isset($values->code,$values->numeroPiece,$values->client))
@@ -138,6 +150,7 @@ class TransactionController extends AbstractController
                     $receiver->setNumeroPiece($values->numeroPiece);
                     $receiver->setCommission($trans_exist[0]->getFrais()*20/100);
                     $receiver->setTypePiece($send_exist[0]->getTypePiece());
+                    $receiver->setUserId($userCreator);
 
                     $entityManager->persist($receiver);
                     $entityManager->flush();
