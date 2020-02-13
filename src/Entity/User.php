@@ -75,6 +75,11 @@ class User implements AdvancedUserInterface
      * @ORM\OneToMany(targetEntity="App\Entity\Receiver", mappedBy="user_id")
      */
     private $receivers;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Compte", inversedBy="utilisateur")
+     */
+    private $compte;
     
 
     public function __construct()
@@ -346,6 +351,18 @@ class User implements AdvancedUserInterface
                 $receiver->setUserId(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCompte(): ?Compte
+    {
+        return $this->compte;
+    }
+
+    public function setCompte(?Compte $compte): self
+    {
+        $this->compte = $compte;
 
         return $this;
     }

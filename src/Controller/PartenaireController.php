@@ -9,6 +9,7 @@ use App\Entity\User as EntityUser;
 use App\Repository\CompteRepository;
 use App\Repository\ContratRepository;
 use App\Repository\PartenaireRepository;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -154,4 +155,61 @@ class PartenaireController extends AbstractController
         return new JsonResponse($data);
     }
  
+      /**
+     * @Route("/affect/{id}", methods={"PUT"})
+     */
+    public function affecterCompte(UserRepository $userRepository,CompteRepository $compteRepository,EntityManagerInterface $entityManager,$id)
+    {
+      //APPARTENIR AU MOINS A UN PARTNAIRE
+      $this->denyAccessUnlessGranted("ROLE_ADMIN_PARTENAIRE",null,"Vous ne pouvez affecter un compte à un utilisateur");
+
+      $user=$userRepository->find($id);
+      if (!$user->getPartenaire()) {
+        # code...
+        $data = [
+          'status' => 200,
+          'message' => 'Cet utilisateur n\'existe pas'
+      ];
+
+      return new JsonResponse($data);
+      }
+
+      $userConnect=$this->getUser();
+      $parteUser=$userConnect->getPartenaire();
+      
+      $partenaireId=$entityManager->getRepository(Partenaire::class)->find($parteUser);
+
+      if (!$partenaireId) {
+        # code...
+        $data = [
+          'status' => 200,
+          'message' => 'Cet utilisateur n\'appartient pas à un partenaire'
+      ];
+
+      return new JsonResponse($data);
+      }
+
+      $compte=$compteRepository->find($partenaireId);
+
+      if (!$compte) {
+        # code...
+        $data = [
+          'status' => 200,
+          'message' => 'Cet utilisateur n\'a pas de compte partenaire'
+      ];
+
+      return new JsonResponse($data);
+      }
+      $idCompte=$entityManager->getRepository(Compte::class)->find($compte->getId());
+      $user->setCompte($idCompte);
+      $entityManager->flush();
+      
+      $data = [
+        'status' => 200,
+        'message' => 'Compte affecté avec succes'
+    ];
+
+    return new JsonResponse($data);
+      
+    }
 }

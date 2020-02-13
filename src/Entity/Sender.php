@@ -66,6 +66,11 @@ class Sender
      */
     private $user_id;
 
+    /**
+     * @ORM\OneToOne(targetEntity="App\Entity\Transaction", inversedBy="sender", cascade={"persist", "remove"})
+     */
+    private $transaction;
+
 
     
 
@@ -192,6 +197,18 @@ class Sender
     public function setUserId(?User $user_id): self
     {
         $this->user_id = $user_id;
+
+        return $this;
+    }
+
+    public function getTransaction(): ?Transaction
+    {
+        return $this->transaction;
+    }
+
+    public function setTransaction(?Transaction $transaction): self
+    {
+        $this->transaction = $transaction;
 
         return $this;
     }

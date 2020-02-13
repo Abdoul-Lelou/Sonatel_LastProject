@@ -47,6 +47,9 @@ class TransactionController extends AbstractController
     public function sender(Request $request,EntityManagerInterface $entityManager,TarifRepository $tarifRepository,
                                     TransactionRepository $transactionRepository)
     {
+
+       //APPARTENIR AU MOINS A UN PARTENAIRE POUR POUVOIR FAIRE DES DEPOTS
+       $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas faire des depots");
      
         //RECUPERER UTILISATEUR CONNECTE
         $user=$this->getUser();
@@ -86,10 +89,16 @@ class TransactionController extends AbstractController
             $transaction->setSenderId($sender_id);
             $transaction->setCommissionSysteme($frais*30/100);
             $transaction->setCommissionEtat($frais*40/100);
+            $transaction->setIsActive(true);
+            $transaction->setDate(new \DateTime("now"));
 
             $entityManager->persist($transaction);
             $entityManager->flush();
 
+            $idtrans=$transaction->getId();
+            $trans_id= $entityManager->getRepository(Transaction::class)->find($idtrans);
+            
+            $sender->setTransaction($trans_id);
             
             $entityManager->flush();
             $data = [
@@ -114,6 +123,9 @@ class TransactionController extends AbstractController
     public function receiver(Request $request,EntityManagerInterface $entityManager,SenderRepository $senderRepository,
                                     TransactionRepository $transactionRepository)
     {
+      //APPARTENIR AU MOINS A UN PARTENAIRE POUR POUVOIR FAIRE DES RETRAITS
+      $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas faire des retraits");
+
         //RECUPERER UTILISATEUR CONNECTE
         $user=$this->getUser();
         $id_user=$user->getId();
@@ -132,10 +144,30 @@ class TransactionController extends AbstractController
                 $tId=$trans_exist[0]->getId();
                 $trans_id= $entityManager->getRepository(Transaction::class)->find($tId);
 
+                $date1=$trans_exist[0]->getDate();
+                $date2= new \DateTime("now");
+                $diff=date_diff($date1,$date2);
+      
+                $date3 = $diff->format("Total number of days: %a.");
+                $dateExpire=intval( preg_replace('~[^0-9]~', '', $date3));
+                
+                if ($dateExpire>7) {
+                  # code...
+                  $trans_exist[0]->setIsActive(false);
+                  $entityManager->flush();
+                }
                 //RECUPERER ID DE L'EVOIE COTE TRANSACTION
                 $sId=$trans_exist[0]->getSenderId();
                 $send_exist=$senderRepository->findBy(array("id"=>$sId));
 
+                if (!$trans_exist[0]->getIsActive()) {
+                  # code...
+                  $data = [
+                    'status' => 200,
+                    'message' => 'Code expire retrait imposible '
+                  ];
+                return new JsonResponse($data);
+                }
                 //VERIFIER SI LE NOM DU CLIENT EST CORRECTE
                 if ($values->client==$send_exist[0]->getClient() &&  $values->code==$trans_exist[0]->getCode())
                 {
@@ -189,5 +221,42 @@ class TransactionController extends AbstractController
 
         return new JsonResponse($data);
     }
-    
+
+    /**
+    * @Route("/disableTrans/{id}", name="annule.transaction", methods={"PUT"})
+     */
+    public function annuleTransaction($id,TransactionRepository $transactionRepository,EntityManagerInterface $entityManager)
+    {
+      $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas annuler une transaction");
+      $transaction=$transactionRepository->find($id);
+
+      if (!empty($transaction)) {
+        # code...
+        if ($transaction->getIsActive()== true)
+         {
+          # code...
+        $transaction->setIsActive(false);
+        $entityManager->flush();
+          
+        $data = [
+          'status' => 200,
+          'message' => 'Transaction annulée avec succes'
+        ];
+
+      return new JsonResponse($data);
+        }
+        $data = [
+          'status' => 200,
+          'message' => 'Transaction dejà annulée ou expirée'
+        ];
+
+      return new JsonResponse($data);
+      }
+      $data = [
+        'status' => 200,
+        'message' => 'Cette transaction n\'existe pas'
+      ];
+
+    return new JsonResponse($data);
+    }
 }
