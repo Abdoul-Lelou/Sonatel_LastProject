@@ -2,6 +2,10 @@
 
 namespace App\Controller;
 
+use App\Entity\AffecterCompte;
+use App\Entity\Client;
+use App\Entity\Compte;
+use App\Entity\Partenaire;
 use App\Entity\Sender;
 use App\Entity\Transaction;
 use App\Repository\SenderRepository;
@@ -10,6 +14,9 @@ use App\Entity\Receiver;
 use App\Entity\User;
 use App\Repository\TransactionRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use PhpParser\Node\Expr\Isset_;
+use Proxies\__CG__\App\Entity\AffecterCompte as EntityAffecterCompte;
+use Proxies\__CG__\App\Entity\Compte as EntityCompte;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,241 +29,185 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class TransactionController extends AbstractController
 {
 
-  public function index(TranslatorInterface $translator)
-    {
-      $translated = $translator->trans('SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 
-                                          1 for key UNIQ_3DB88C962FC0CB0F ');
-    
-        // ...
-        return $translated;
-    }   
-
+  
      //GENERER UN NOMBRE 
-     function generer_number($long=8){
+  public function generer_number($long=8)
+  {
         $numero = '';
-          for($i=0;$i<$long;$i++){
-            $array = array('I','0','1','C','2','Z','A','X','5','J','7','8','9','D','E');
-             $numero .= $array[rand(0,14)];
-           }
+          for($i=0;$i<$long;$i++)
+          {
+            $array = array('I','R','K','C','V','Z','A','X','O','S','T','8','9','D','E');
+            $array1 = array('0','9','2','8','3','7','4','6','5','H','P','W','Q','1','L');
+             $numero .= $array[rand(0,14)].$array1[rand(0,14)];
+          }
         return $numero;
-     }
+  }
 
-    /**
-     * @Route("/sender", name="sender", methods={"POST"})
+     /**
+     * @Route("/transaction", name="sender", methods={"POST"})
      */
     public function sender(Request $request,EntityManagerInterface $entityManager,TarifRepository $tarifRepository,
                                     TransactionRepository $transactionRepository)
     {
-
-       //APPARTENIR AU MOINS A UN PARTENAIRE POUR POUVOIR FAIRE DES DEPOTS
-       $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas faire des depots");
+      //APPARTENIR AU MOINS A UN PARTENAIRE POUR POUVOIR FAIRE DES DEPOTS
+      $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas faire des depots");
      
-        //RECUPERER UTILISATEUR CONNECTE
-        $user=$this->getUser();
-        $id_user=$user->getId();
-        $userCreator = $entityManager->getRepository(User::class)->find($id_user);
-
-        $values=json_decode($request->getContent());
-        
-        if (isset($values->montant,$values->client,$values->typePiece,$values->numeroPiece,$values->tel)) 
-        {
-            //RECUPERATION DU FRAIS D'ENVOIE
-            $tarif=$tarifRepository->findTarif($values->montant);
-            $frais=$tarif[0]->getFrais();
-
-            //EFFECTUER L'ENVOIE 
-            $sender=new Sender();
-            $sender->setMontant($values->montant);
-            $sender->setNumeroPiece($values->numeroPiece);
-            $sender->setTel($values->tel);
-            $sender->setTypePiece($values->typePiece);
-            $sender->setClient($values->client);
-            $sender->setDate(new  \DateTime("now"));
-            $sender->setCommission($frais*10/100);
-            $sender->setUserId($userCreator);
-
-            $entityManager->persist($sender);
-            $entityManager->flush();
-
-            //RECUPERER ID DE L'ENVOIE
-            $idsender=$sender->getId();
-            $sender_id= $entityManager->getRepository(Sender::class)->find($idsender);
-            
-            //EFFECTUER LA TRANSACTION COTE ENVOIE
-            $transaction= new Transaction();
-            $transaction->setCode($this->generer_number());
-            $transaction->setFrais($frais);
-            $transaction->setSenderId($sender_id);
-            $transaction->setCommissionSysteme($frais*30/100);
-            $transaction->setCommissionEtat($frais*40/100);
-            $transaction->setIsActive(true);
-            $transaction->setDate(new \DateTime("now"));
-
-            $entityManager->persist($transaction);
-            $entityManager->flush();
-
-            $idtrans=$transaction->getId();
-            $trans_id= $entityManager->getRepository(Transaction::class)->find($idtrans);
-            
-            $sender->setTransaction($trans_id);
-            
-            $entityManager->flush();
-            $data = [
-                'status' => 200,
-                'message' => 'Evoie effectuer avec succes'
-              ];
-            return new JsonResponse($data);
-        }
+      //RECUPERER UTILISATEUR CONNECTE
+      $user=$this->getUser();
+      $id_user=$user->getId(); // SON ID
+      $userParteId=$user->getPartenaire(); // SON PARTENAIRE
+      $userParte = $entityManager->getRepository(Partenaire::class)->find($userParteId);
+      
+      
+      if (!$userParte) 
+      {
+        # code...
         $data = [
+          'status' => 200,
+          'message' => 'L\'utilisateur n\'appartient à aucun partenaire'
+        ];
+        return new JsonResponse($data);
+      }
+      $affectId=$user->getAffecterCompte();
+      $affecterCompte = $entityManager->getRepository(AffecterCompte::class)->find($affectId);
+      $idCompte=$affecterCompte->getCompte();
+      $compteId = $entityManager->getRepository(EntityCompte::class)->find($idCompte);
+
+     
+      $values=json_decode($request->getContent());
+     
+      if (isset($values->montant,$values->nomClient,$values->prenomClient,$values->telClient,$values->telRecepteur,
+                  $values->nomRecepteur,$values->prenomRecepteur))
+      {
+        if ($values->montant>$compteId->getSolde()) 
+        {
+          # code...
+          $data = [
             'status' => 200,
-            'message' => 'Donnee invalides'
+            'message' => 'Vous n\'avez pas ce montant dans votre compte'
           ];
         return new JsonResponse($data);
 
-    }
+        }
+        //RECUPERATION DU FRAIS D'ENVOIE
+        $tarif=$tarifRepository->findTarif($values->montant);
+        $frais=$tarif[0]->getFrais();
 
+        $client=new Client();
+        $client->setNomClient($values->nomClient);
+        $client->setPrenomClient($values->prenomClient);
+        $client->setTelClient($values->telClient);
+        $client->setTelRecepteur($values->telRecepteur);
+        $client->setNomRecepteur($values->nomRecepteur);
+        $client->setPrenomRecepteur($values->prenomRecepteur);
+        $entityManager->persist($client);
+        $entityManager->flush();
 
+        $idClient=$client->getId();
+        $clientId=$entityManager->getRepository(Client::class)->find($idClient);
 
-    /**
-     * @Route("/receiver", name="receiver", methods={"POST"})
-     */
-    public function receiver(Request $request,EntityManagerInterface $entityManager,SenderRepository $senderRepository,
-                                    TransactionRepository $transactionRepository)
-    {
-      //APPARTENIR AU MOINS A UN PARTENAIRE POUR POUVOIR FAIRE DES RETRAITS
-      $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas faire des retraits");
+        $transaction=new Transaction();
+        $transaction->setDate_depot(new \DateTime("now"));
+        $transaction->setIsActive(true);
+        $transaction->setMontant($values->montant);
+        $transaction->setClient($clientId);
+        $transaction->setFrais($frais);
+        $transaction->setDeposer($idCompte);
+        $transaction->setCode($this->generer_number());
+        $transaction->setCommissionEnvoie($frais*10/100);
+        $transaction->setCommissionEtat($frais*40/100);
+        $transaction->setCommissionSysteme($frais*30/100);
+        $transaction->setCommissionRetait($frais*20/100);
 
-        //RECUPERER UTILISATEUR CONNECTE
-        $user=$this->getUser();
-        $id_user=$user->getId();
-        $userCreator = $entityManager->getRepository(User::class)->find($id_user);
+        $entityManager->persist($transaction);
+        $entityManager->flush();
 
-        $values=json_decode($request->getContent());
-
-        if (isset($values->code,$values->numeroPiece,$values->client))
-        {
-            # code...
-            //VERIFIER SI LE CODE D'ENVOIE EXISTE
-            $trans_exist=$transactionRepository->findBy(array("code"=>$values->code));
+        $data = [
+          'status' => 200,
+          'message' => 'Envoie effectuer avec success'
+        ];
+        return new JsonResponse($data);
+      }
+      elseif (isset($values->nomRecepteur,$values->prenomRecepteur,$values->code)){
+        # code...
+          $trans_exist=$transactionRepository->findBy(array("code"=>$values->code));
+          
             if ($trans_exist) {
                 # code...
                 //RECUPERER ID DE LA TRANSACTION
                 $tId=$trans_exist[0]->getId();
                 $trans_id= $entityManager->getRepository(Transaction::class)->find($tId);
-
-                $date1=$trans_exist[0]->getDate();
+                $idClient=$trans_id->getClient();
+                $client_id= $entityManager->getRepository(Client::class)->find($idClient);
+               
+                //CALCULER LA DATE
+                $date1=$trans_exist[0]->getDate_depot();
                 $date2= new \DateTime("now");
                 $diff=date_diff($date1,$date2);
       
                 $date3 = $diff->format("Total number of days: %a.");
                 $dateExpire=intval( preg_replace('~[^0-9]~', '', $date3));
                 
+                //VERIFIER SI LA DELAI N'EST PAS DEPASSER
                 if ($dateExpire>7) {
                   # code...
                   $trans_exist[0]->setIsActive(false);
                   $entityManager->flush();
                 }
-                //RECUPERER ID DE L'EVOIE COTE TRANSACTION
-                $sId=$trans_exist[0]->getSenderId();
-                $send_exist=$senderRepository->findBy(array("id"=>$sId));
 
-                if (!$trans_exist[0]->getIsActive()) {
-                  # code...
+            
+                //RECUPERER ID DE L'EVOIE COTE TRANSACTION
+
+               if ($trans_exist[0]->getIsActive()==false) {
+                # code...
+                $data = [
+                  'status' => 200,
+                  'message' => 'Code expire retrait imposible '
+                ];
+                return new JsonResponse($data);
+              }elseif($trans_exist[0]->getRetirer()) {
+                # code...
+                $data = [
+                  'status' => 200,
+                  'message' => 'Somme déjà retirée '
+                ];
+                return new JsonResponse($data);
+              }  
+                
+                $somme= $trans_exist[0]->getMontant();
+               //VERIFIER SI LES INFORMATIONS DU CLIENT SONT CORRECTE
+                if ($values->prenomRecepteur==$client_id->getPrenomRecepteur() &&  $values->code==$trans_exist[0]->getCode()
+                        && $values->nomRecepteur==$client_id->getNomRecepteur()){
+
+                  $trans_exist[0]->setDateRetrait(new \DateTime("now"));
+                  $trans_exist[0]->setRetirer($idCompte);
+                  
+                  $entityManager->flush();
                   $data = [
                     'status' => 200,
-                    'message' => 'Code expire retrait imposible '
+                    'message' => 'Retrait des '.$somme.' effectué avec succes '
                   ];
-                return new JsonResponse($data);
-                }
-                //VERIFIER SI LE NOM DU CLIENT EST CORRECTE
-                if ($values->client==$send_exist[0]->getClient() &&  $values->code==$trans_exist[0]->getCode())
-                {
-                    # code...
-                    //EFFECTUER LE RETRAIT
-                    $receiver= new Receiver();
-                    $receiver->setDate(new \DateTime("now"));
-                    $receiver->setTransaction($trans_id);
-                    $receiver->setClient($values->client);
-                    $receiver->setTel($send_exist[0]->getTel());
-                    $receiver->setMontant($send_exist[0]->getMontant());
-                    $receiver->setNumeroPiece($values->numeroPiece);
-                    $receiver->setCommission($trans_exist[0]->getFrais()*20/100);
-                    $receiver->setTypePiece($send_exist[0]->getTypePiece());
-                    $receiver->setUserId($userCreator);
-
-                    $entityManager->persist($receiver);
-                    $entityManager->flush();
-
-                    //RECUPERER L'ID DU RETRAIT EFFECTUER
-                    $rId=$receiver->getId();
-                    $receiver_id= $entityManager->getRepository(Receiver::class)->find($rId);
-
-                    //AJOUTER ID DU RETRAIT A LA TRANSACTION
-                    $trans_exist[0]->setReceiver($receiver_id);
-
-                    $entityManager->persist($trans_exist[0]);
-                    $entityManager->flush();
-
-                    $data = [
-                        'status' => 200,
-                        'message' => 'Retrait effectuer avec succes'
-                      ];
-                    return new JsonResponse($data);
-
-                }
+                  return new JsonResponse($data);
+                }   
 
                 $data = [
-                    'status' => 200,
-                    'message' => 'Nom du client incorrecte '
-                  ];
-                  
+                  'status' => 200,
+                  'message' => 'Information du client incorrect'
+                ];
                 return new JsonResponse($data);
-                
-            }
-        }
-        $data = [
-            'status' => 200,
-            'message' => 'Erreur de saisi '
-          ];
-
-        return new JsonResponse($data);
-    }
-
-    /**
-    * @Route("/disableTrans/{id}", name="annule.transaction", methods={"PUT"})
-     */
-    public function annuleTransaction($id,TransactionRepository $transactionRepository,EntityManagerInterface $entityManager)
-    {
-      $this->denyAccessUnlessGranted("ROLE_USER_PARTENAIRE",null,"Vous ne pouvez pas annuler une transaction");
-      $transaction=$transactionRepository->find($id);
-
-      if (!empty($transaction)) {
-        # code...
-        if ($transaction->getIsActive()== true)
-         {
-          # code...
-        $transaction->setIsActive(false);
-        $entityManager->flush();
-          
-        $data = [
-          'status' => 200,
-          'message' => 'Transaction annulée avec succes'
-        ];
-
-      return new JsonResponse($data);
-        }
-        $data = [
-          'status' => 200,
-          'message' => 'Transaction dejà annulée ou expirée'
-        ];
-
-      return new JsonResponse($data);
+              }
+                  
+                $data = [
+                  'status' => 200,
+                  'message' => 'code incorrect'
+                ];
+                return new JsonResponse($data);  
       }
       $data = [
         'status' => 200,
-        'message' => 'Cette transaction n\'existe pas'
+        'message' => 'Donnees saisi incorrecte incorrect'
       ];
-
-    return new JsonResponse($data);
+      return new JsonResponse($data);
     }
+       
 }

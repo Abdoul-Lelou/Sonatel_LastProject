@@ -42,15 +42,6 @@ class Transaction implements AdvancedUserInterface
      */
     private $commissionEtat;
 
-    /**
-     * @ORM\OneToOne(targetEntity="App\Entity\Sender", inversedBy="transaction_id", cascade={"persist", "remove"})
-     */
-    private $sender_id;
-
-    /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Receiver", inversedBy="transactions")
-     */
-    private $receiver;
 
     /**
      * @ORM\Column(type="boolean")
@@ -59,17 +50,52 @@ class Transaction implements AdvancedUserInterface
 
     /**
      * @ORM\Column(type="date")
+     * @ORM\JoinColumn(nullable=false)
      */
-    private $date;
+    private $date_depot;
+    
+     
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Compte", inversedBy="transactions")
+     *  @ORM\JoinColumn(nullable=false)
+     */
+    private $deposer;
 
     /**
-     * @ORM\OneToOne(targetEntity="App\Entity\Sender", mappedBy="transaction", cascade={"persist", "remove"})
+     * @ORM\ManyToOne(targetEntity="App\Entity\Compte", inversedBy="transactions")
      */
-    private $sender;
+    private $retirer;
 
+    /**
+     * @ORM\Column(type="float")
+     */
+    private $commission_envoie;
+
+    /**
+     * @ORM\Column(type="float")
+     */
+    private $montant;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Client", inversedBy="transaction")
+     * @ORM\JoinColumn(nullable=false)
+     */
+    private $client;
+
+    /**
+     * @ORM\Column(type="integer")
+     */
+    private $commission_retait;
+
+    /**
+     * @ORM\Column(type="date", nullable=true)
+     */
+    private $date_retrait;
+
+    
     public function __construct()
     {
-        $this->senders = new ArrayCollection();
+        
     }
 
     public function getId(): ?int
@@ -125,40 +151,7 @@ class Transaction implements AdvancedUserInterface
         return $this;
     }
 
-    /**
-     * @return Collection|Sender[]
-     */
-    public function getSenders(): Collection
-    {
-        return $this->senders;
-    }
-
-    
-
-    public function getSenderId(): ?Sender
-    {
-        return $this->sender_id;
-    }
-
-    public function setSenderId(?Sender $sender_id): self
-    {
-        $this->sender_id = $sender_id;
-
-        return $this;
-    }
-
-    public function getReceiver(): ?Receiver
-    {
-        return $this->receiver;
-    }
-
-    public function setReceiver(?Receiver $receiver): self
-    {
-        $this->receiver = $receiver;
-
-        return $this;
-    }
-
+   
     public function getIsActive(): ?bool
     {
         return $this->isActive;
@@ -190,33 +183,112 @@ class Transaction implements AdvancedUserInterface
     public function getPassword(){}
     public function getUsername(){}
     public function getRoles(){}
+  
 
-    public function getDate(): ?\DateTimeInterface
+    public function getDeposer(): ?Compte
     {
-        return $this->date;
+        return $this->deposer;
     }
 
-    public function setDate(\DateTimeInterface $date): self
+    public function setDeposer(?Compte $deposer): self
     {
-        $this->date = $date;
+        $this->deposer = $deposer;
 
         return $this;
     }
 
-    public function getSender(): ?Sender
+    public function getRetirer(): ?Compte
     {
-        return $this->sender;
+        return $this->retirer;
     }
 
-    public function setSender(?Sender $sender): self
+    public function setRetirer(?Compte $retirer): self
     {
-        $this->sender = $sender;
+        $this->retirer = $retirer;
 
-        // set (or unset) the owning side of the relation if necessary
-        $newTransaction = null === $sender ? null : $this;
-        if ($sender->getTransaction() !== $newTransaction) {
-            $sender->setTransaction($newTransaction);
-        }
+        return $this;
+    }
+
+    public function getCommissionEnvoie(): ?float
+    {
+        return $this->commission_envoie;
+    }
+
+    public function setCommissionEnvoie(float $commission_envoie): self
+    {
+        $this->commission_envoie = $commission_envoie;
+
+        return $this;
+    }
+
+    public function getMontant(): ?float
+    {
+        return $this->montant;
+    }
+
+    public function setMontant(float $montant): self
+    {
+        $this->montant = $montant;
+
+        return $this;
+    }
+
+    
+
+    /**
+     * Get the value of date_depot
+     */ 
+    public function getDate_depot()
+    {
+        return $this->date_depot;
+    }
+
+    /**
+     * Set the value of date_depot
+     *
+     * @return  self
+     */ 
+    public function setDate_depot($date_depot)
+    {
+        $this->date_depot = $date_depot;
+
+        return $this;
+    }
+
+    
+
+    public function getClient(): ?Client
+    {
+        return $this->client;
+    }
+
+    public function setClient(?Client $client): self
+    {
+        $this->client = $client;
+
+        return $this;
+    }
+
+    public function getCommissionRetait(): ?int
+    {
+        return $this->commission_retait;
+    }
+
+    public function setCommissionRetait(int $commission_retait): self
+    {
+        $this->commission_retait = $commission_retait;
+
+        return $this;
+    }
+
+    public function getDateRetrait(): ?\DateTimeInterface
+    {
+        return $this->date_retrait;
+    }
+
+    public function setDateRetrait(?\DateTimeInterface $date_retrait): self
+    {
+        $this->date_retrait = $date_retrait;
 
         return $this;
     }

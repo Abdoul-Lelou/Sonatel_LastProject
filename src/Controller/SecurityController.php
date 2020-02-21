@@ -68,6 +68,7 @@ class SecurityController extends AbstractController
         //AJOUTER LES UTILISATEURS
        
         $values = json_decode($request->getContent());
+        //var_dump($values);die;
        
         if(isset($values->username,$values->password,$values->nom,$values->role_id,$values->isActive,$values->partenaire_id)) 
         {

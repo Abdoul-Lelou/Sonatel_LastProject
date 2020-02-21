@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\AffecterCompte;
 use App\Entity\Compte;
 use App\Entity\Depot;
 use App\Entity\Partenaire;
@@ -51,17 +52,26 @@ class PartenaireController extends AbstractController
     {
       //AVOIR AU MOINS LE ROLE ADMIN POUR CREER UN PARTENAIRE
       $this->denyAccessUnlessGranted("ROLE_ADMIN",null,"Vous n'avez pas les droits requis");
+    
+      $values = json_decode($request->getContent());
       
       $user=$this->getUser();
       $id_user=$user->getId();
       $userCreator = $entityManager->getRepository(EntityUser::class)->find($id_user);
       $numero=$this->generer_caracteres(9);
 
-      $values = json_decode($request->getContent());
-
+      
         if(isset($values->ninea,$values->rc,$values->email,$values->tel,$values->logo,$values->solde))
         {
-
+            if ($values->solde<50000) {
+              # code...
+              $data = [
+                'status' => 403,
+                'message' => 'Vous ne pouvez pas faire un depot inferieure à 50000'
+            ];
+    
+            return new JsonResponse($data);
+            }
             $partenaire  = new Partenaire();
             $user_exist=$prtRepo->findBy(array("ninea"=>$values->ninea));
             
@@ -93,7 +103,7 @@ class PartenaireController extends AbstractController
 
               $data = [
                 'status' => 200,
-                'message' => 'Compte a été mise à jour avec succès'
+                'message' => 'Compte mise à jour avec succès'
               ];
             return new JsonResponse($data);
 
@@ -101,7 +111,7 @@ class PartenaireController extends AbstractController
         //CREATION DU NOUVEAU PARTENAIRE
 
             $contrat= $contratRepository->findAll();
-
+            
             $partenaire->setNinea($values->ninea);
             $partenaire->setRc($values->rc);
             $partenaire->setTel($values->tel);
@@ -158,11 +168,12 @@ class PartenaireController extends AbstractController
       /**
      * @Route("/affect/{id}", methods={"PUT"})
      */
-    public function affecterCompte(UserRepository $userRepository,CompteRepository $compteRepository,EntityManagerInterface $entityManager,$id)
+    public function affecterCompte(UserRepository $userRepository,Request $request, CompteRepository $compteRepository,EntityManagerInterface $entityManager,$id)
     {
       //APPARTENIR AU MOINS A UN PARTNAIRE
-      $this->denyAccessUnlessGranted("ROLE_ADMIN_PARTENAIRE",null,"Vous ne pouvez affecter un compte à un utilisateur");
+      $this->denyAccessUnlessGranted("ROLE_ADMIN_PARTENAIRE",null,"Vous ne pouvez pas affecter un compte à un utilisateur");
 
+      $values = json_decode($request->getContent());
       $user=$userRepository->find($id);
       if (!$user->getPartenaire()) {
         # code...
@@ -201,15 +212,35 @@ class PartenaireController extends AbstractController
       return new JsonResponse($data);
       }
       $idCompte=$entityManager->getRepository(Compte::class)->find($compte->getId());
-      $user->setCompte($idCompte);
+      if (isset($values->dateFin) ) {
+        # code...
+      $affecter=new AffecterCompte();
+      $affecter->setCompte($idCompte);
+      $affecter->setDateDebut(new \DateTime("now"));
+      $affecter->setDateFin($values->dateFin);
+      $affecter->setUserAffect($userConnect);
+
+      $entityManager->persist($affecter);
+      $entityManager->flush();
+
+      $affectId=$entityManager->getRepository(AffecterCompte::class)->find($affecter->getId());
+
+      $user->setAffecterCompte($affectId);
       $entityManager->flush();
       
       $data = [
         'status' => 200,
         'message' => 'Compte affecté avec succes'
+      ];
+
+    return new JsonResponse($data);
+    }
+
+    $data = [
+      'status' => 200,
+      'message' => 'Donnée invalides'
     ];
 
     return new JsonResponse($data);
-      
     }
 }

@@ -56,11 +56,17 @@ class Compte
      * @ORM\OneToMany(targetEntity="App\Entity\User", mappedBy="compte")
      */
     private $utilisateur;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Transaction", mappedBy="compte")
+     */
+    private $transactions;
    
     public function __construct()
     {
         $this->depots = new ArrayCollection();
         $this->utilisateur = new ArrayCollection();
+        $this->transactions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -159,35 +165,4 @@ class Compte
         return $this;
     }
 
-    /**
-     * @return Collection|User[]
-     */
-    public function getUtilisateur(): Collection
-    {
-        return $this->utilisateur;
-    }
-
-    public function addUtilisateur(User $utilisateur): self
-    {
-        if (!$this->utilisateur->contains($utilisateur)) {
-            $this->utilisateur[] = $utilisateur;
-            $utilisateur->setCompte($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUtilisateur(User $utilisateur): self
-    {
-        if ($this->utilisateur->contains($utilisateur)) {
-            $this->utilisateur->removeElement($utilisateur);
-            // set the owning side to null (unless already changed)
-            if ($utilisateur->getCompte() === $this) {
-                $utilisateur->setCompte(null);
-            }
-        }
-
-        return $this;
-    }
-   
 }

@@ -62,32 +62,17 @@ class User implements AdvancedUserInterface
     private $depots;
 
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Compte", mappedBy="user")
+     * @ORM\ManyToOne(targetEntity="App\Entity\AffecterCompte", inversedBy="affecter")
      */
-    private $comptes;
+    private $affecterCompte;
 
-    /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Sender", mappedBy="user_id")
-     */
-    private $senders;
-
-    /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Receiver", mappedBy="user_id")
-     */
-    private $receivers;
-
-    /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Compte", inversedBy="utilisateur")
-     */
-    private $compte;
     
 
+    
     public function __construct()
     {
         $this->depots = new ArrayCollection();
         $this->comptes = new ArrayCollection();
-        $this->senders = new ArrayCollection();
-        $this->receivers = new ArrayCollection();
        
     }
 
@@ -265,7 +250,7 @@ class User implements AdvancedUserInterface
     /**
      * @return Collection|Compte[]
      */
-    public function getComptes(): Collection
+    /*public function getComptes(): Collection
     {
         return $this->comptes;
     }
@@ -291,71 +276,23 @@ class User implements AdvancedUserInterface
         }
 
         return $this;
+    }*/
+
+   
+
+    public function getAffecterCompte(): ?AffecterCompte
+    {
+        return $this->affecterCompte;
     }
 
-    /**
-     * @return Collection|Sender[]
-     */
-    public function getSenders(): Collection
+    public function setAffecterCompte(?AffecterCompte $affecterCompte): self
     {
-        return $this->senders;
-    }
-
-    public function addSender(Sender $sender): self
-    {
-        if (!$this->senders->contains($sender)) {
-            $this->senders[] = $sender;
-            $sender->setUserId($this);
-        }
+        $this->affecterCompte = $affecterCompte;
 
         return $this;
     }
 
-    public function removeSender(Sender $sender): self
-    {
-        if ($this->senders->contains($sender)) {
-            $this->senders->removeElement($sender);
-            // set the owning side to null (unless already changed)
-            if ($sender->getUserId() === $this) {
-                $sender->setUserId(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection|Receiver[]
-     */
-    public function getReceivers(): Collection
-    {
-        return $this->receivers;
-    }
-
-    public function addReceiver(Receiver $receiver): self
-    {
-        if (!$this->receivers->contains($receiver)) {
-            $this->receivers[] = $receiver;
-            $receiver->setUserId($this);
-        }
-
-        return $this;
-    }
-
-    public function removeReceiver(Receiver $receiver): self
-    {
-        if ($this->receivers->contains($receiver)) {
-            $this->receivers->removeElement($receiver);
-            // set the owning side to null (unless already changed)
-            if ($receiver->getUserId() === $this) {
-                $receiver->setUserId(null);
-            }
-        }
-
-        return $this;
-    }
-
-    public function getCompte(): ?Compte
+   /* public function getCompte(): ?Compte
     {
         return $this->compte;
     }
@@ -365,6 +302,12 @@ class User implements AdvancedUserInterface
         $this->compte = $compte;
 
         return $this;
-    }
+    }*/
+
+   
+
+    
+
+   
 
 }
