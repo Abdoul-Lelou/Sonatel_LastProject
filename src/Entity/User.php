@@ -108,13 +108,6 @@ class User implements AdvancedUserInterface
         return array($this->role->getLibelle());
     }
 
-    /*public function setRoles(array $roles):? self
-    {
-        $this->roles = $roles;
-
-        return $this;
-    }*/
-
     /**
      * @see UserInterface
      */
@@ -245,40 +238,7 @@ class User implements AdvancedUserInterface
         }
 
         return $this;
-    }
-
-    /**
-     * @return Collection|Compte[]
-     */
-    /*public function getComptes(): Collection
-    {
-        return $this->comptes;
-    }
-
-    public function addCompte(Compte $compte): self
-    {
-        if (!$this->comptes->contains($compte)) {
-            $this->comptes[] = $compte;
-            $compte->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeCompte(Compte $compte): self
-    {
-        if ($this->comptes->contains($compte)) {
-            $this->comptes->removeElement($compte);
-            // set the owning side to null (unless already changed)
-            if ($compte->getUser() === $this) {
-                $compte->setUser(null);
-            }
-        }
-
-        return $this;
-    }*/
-
-   
+    }   
 
     public function getAffecterCompte(): ?AffecterCompte
     {
@@ -291,23 +251,7 @@ class User implements AdvancedUserInterface
 
         return $this;
     }
-
-   /* public function getCompte(): ?Compte
-    {
-        return $this->compte;
-    }
-
-    public function setCompte(?Compte $compte): self
-    {
-        $this->compte = $compte;
-
-        return $this;
-    }*/
-
    
-
-    
-
-   
+     
 
 }

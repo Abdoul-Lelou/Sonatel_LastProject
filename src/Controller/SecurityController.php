@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Partenaire as EntityPartenaire;
 use App\Entity\User;
 use App\Repository\PartenaireRepository;
+use App\Repository\RolesRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Proxies\__CG__\App\Entity\Roles as EntityRoles;
@@ -27,20 +28,121 @@ class SecurityController extends AbstractController
     /**
      * @Route("/users", methods={"GET"})
      */
-    public function findUsers(UserRepository $userRep,SerializerInterface $serializer)
+    public function findUsers(UserRepository $userRep,SerializerInterface $serializer,RolesRepository $repRole,EntityManagerInterface $entityManager)
     {
-        //AVOIR AU MOINS LE ROLE_ADMIN POUR AFFICHER LES USERS
-        $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"role incorrect");
+
+        $user=$this->getUser();
+        $rolesUser=$user->getRoles();
+        $userRole=$repRole->findBy(array("libelle"=>"ROLE_USER"));
+        $adminRole=$repRole->findBy(array("libelle"=>["ROLE_ADMIN","ROLE_USER",]));
+        $userPartRole=$repRole->findOneByLibelle("ROLE_USER_PARTENAIRE");
+        $adminPartRole=$repRole->findOneByLibelle("ROLE_ADMIN_PARTENAIRE");
         
-        $user= $userRep->findAll();
-        $data=$serializer->serialize($user,"json", [
-            'circular_reference_handler' => function ($object) {
-                return $object->getId();
-            }
-        ]);
-        return new JsonResponse($data,Response::HTTP_OK,[],true);
+        //var_dump($partId->getRoles());die;
+        if ($rolesUser[0]==="ROLE_ADMIN"){ 
+            $user= $userRep->find($userRole[0]->getId());
+            $data=$serializer->serialize($user,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+            return new JsonResponse($data,Response::HTTP_OK,[],true);
+            
+        }else if ($rolesUser[0]==="ROLE_SUPER_ADMIN"){ 
+            
+            $user1= $userRep->find($adminRole[1]->getId());
+            $user2= $userRep->find($adminRole[0]->getId());
+            
+            $data1=$serializer->serialize($user1,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+            $data2=$serializer->serialize($user2,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+
+            return new JsonResponse(($data1.$data2),Response::HTTP_OK,[],true);
+        }else if ($rolesUser[0]==="ROLE_ADMIN_PARTENAIRE"){ 
+                            
+            $idUserConnect= $user->getId();
+			$partId = $entityManager->getRepository(User::class)->find(intVal($idUserConnect));
+			$idPartenaire= $partId->getPartenaire()->getId();
+            $user= $userRep->findUserPart($idPartenaire,$userPartRole->getId());
+            //var_dump($idPartenaire);die;
+            $data=$serializer->serialize($user,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+            return new JsonResponse($data,Response::HTTP_OK,[],true);
+            
+        }else if ($rolesUser[0]==="ROLE_PARTENAIRE"){ 
+            
+            $idUserConnect= $user->getId();
+			$partId = $entityManager->getRepository(User::class)->find(intVal($idUserConnect));
+			$idPartenaire= $partId->getPartenaire()->getId();
+            $user1= $userRep->findUserPart($idPartenaire,$adminPartRole->getId());
+            $user2= $userRep->findUserPart($idPartenaire,$userPartRole->getId());
+            //var_dump($user2[0]->getId());die;
+            $data1=$serializer->serialize($user1,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+            $data2=$serializer->serialize($user,"json", [
+                'circular_reference_handler' => function ($object) {
+                    return $object->getId();
+                }
+            ]);
+            
+
+            return new JsonResponse(($data1),Response::HTTP_OK,[],true);
+        }
+        return new JsonResponse("",Response::HTTP_OK,[],true);
+        
     }
    
+
+    /**
+     * @Route("/roles", methods={"GET"})
+     */
+    public function findRoles(RolesRepository $rolesRepository,SerializerInterface $serializer){
+
+        $user=$this->getUser();
+        $rolesUser=$user->getRoles();
+        
+        if ($rolesUser[0]==="ROLE_ADMIN") {
+            # code...
+            $role=$rolesRepository->findBy(array("libelle"=>"ROLE_USER"));
+
+            $data=$serializer->serialize($role,"json");
+            return new JsonResponse($data,Response::HTTP_OK,[],true);
+       }elseif ($rolesUser[0]==="ROLE_SUPER_ADMIN") {
+           # code...
+           $role=$rolesRepository->findBy(array("libelle"=>["ROLE_USER","ROLE_ADMIN"]));
+
+            $data=$serializer->serialize($role,"json");
+            return new JsonResponse($data,Response::HTTP_OK,[],true);
+       }elseif ($rolesUser[0]==="ROLE_PARTENAIRE") {
+        # code...
+        $role=$rolesRepository->findBy(array("libelle"=>["ROLE_USER_PARTENAIRE","ROLE_ADMIN_PARTENAIRE"]));
+
+         $data=$serializer->serialize($role,"json");
+         return new JsonResponse($data,Response::HTTP_OK,[],true);
+       }elseif ($rolesUser[0]==="ROLE_ADMIN_PARTENAIRE") {
+        # code...
+        $role=$rolesRepository->findBy(array("libelle"=>"ROLE_USER_PARTENAIRE"));
+
+         $data=$serializer->serialize($role,"json");
+         return new JsonResponse($data,Response::HTTP_OK,[],true);
+    }
+
+        return new JsonResponse('',Response::HTTP_OK,[],true);
+
+    }
 
     /**
      * @Route("/partenaire", methods={"GET"})
@@ -68,7 +170,6 @@ class SecurityController extends AbstractController
         //AJOUTER LES UTILISATEURS
        
         $values = json_decode($request->getContent());
-        //var_dump($values);die;
        
         if(isset($values->username,$values->password,$values->nom,$values->role_id,$values->isActive,$values->partenaire_id)) 
         {
