@@ -6,25 +6,27 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-
 
 /**
  * @ApiResource()
- * @ORM\Entity(repositoryClass="App\Repository\RolesRepository")
+ * @ORM\Entity(repositoryClass="App\Repository\RoleRepository")
  */
-class Roles
+class Role
 {
     /**
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
+     * @Groups({"patient"})
      */
     private $id;
 
     /**
      * @ORM\Column(type="string", length=255)
-     * @Assert\NotNull
+     * @Groups({"patient"})
+     * @Assert\NotBlank
      */
     private $libelle;
 
@@ -33,9 +35,16 @@ class Roles
      */
     private $users;
 
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\User", mappedBy="role")
+     * @Groups({"patient"})
+     */
+    private $user;
+
     public function __construct()
     {
         $this->users = new ArrayCollection();
+        $this->user = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -72,9 +81,25 @@ class Roles
 
         return $this;
     }
-    public function __toString()
+
+    public function removeUser(User $user): self
     {
-        return $this->libelle;
+        if ($this->users->contains($user)) {
+            $this->users->removeElement($user);
+            // set the owning side to null (unless already changed)
+            if ($user->getRole() === $this) {
+                $user->setRole(null);
+            }
+        }
+
+        return $this;
     }
-    
+
+    /**
+     * @return Collection|User[]
+     */
+    public function getUser(): Collection
+    {
+        return $this->user;
+    }
 }

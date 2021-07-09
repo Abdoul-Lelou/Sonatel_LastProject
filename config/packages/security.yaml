@@ -4,6 +4,7 @@ security:
             algorithm: auto
 
 
+
     # https://symfony.com/doc/current/security.html#where-do-users-come-from-user-providers
     providers:
         # used to reload user from session & other features (e.g. switch_user)
@@ -12,10 +13,12 @@ security:
                 class: App\Entity\User
                 property: username
         # used to reload user from session & other features (e.g. switch_user)
+        # used to reload user from session & other features (e.g. switch_user)
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+            
         login:
             pattern:  ^/api/login
             stateless: true
@@ -31,17 +34,17 @@ security:
             guard:
                 authenticators:
                     - lexik_jwt_authentication.jwt_token_authenticator
-
+        
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
-    role_hierarchy:
-        ROLE_ADMIN_PARTENAIRE: ROLE_USER_PARTENAIRE  
-        ROLE_PARTENAIRE:       ROLE_ADMIN_PARTENAIRE 
-        ROLE_ADMIN:        ROLE_USER
-        ROLE_SUPER_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH]  
+    role_hierarchy:    
+        
+        ROLE_MEDECIN:       ROLE_SECRETAIRE
+        ROLE_ADMIN: [ROLE_MEDECIN, ROLE_ALLOWED_TO_SWITCH]
         
     access_control:
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
         - { path: ^/api/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/api,       roles: IS_AUTHENTICATED_FULLY }
+        #- { path: ^/api,       roles: IS_AUTHENTICATED_FULLY }
+      

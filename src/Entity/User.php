@@ -5,14 +5,15 @@ namespace App\Entity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Security\Core\User\UserInterface;
-use ApiPlatform\Core\Annotation\ApiResource;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\AdvancedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * @ApiResource()
  * @ORM\Entity(repositoryClass="App\Repository\UserRepository")
+ * @UniqueEntity("email")
  */
 class User implements AdvancedUserInterface
 {
@@ -20,11 +21,13 @@ class User implements AdvancedUserInterface
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
+     * @Groups({"patient"})
      */
     private $id;
 
     /**
      * @ORM\Column(type="string", length=180, unique=true)
+     * @Groups({"patient"})
      * @Assert\NotBlank
      */
     private $username;
@@ -33,50 +36,107 @@ class User implements AdvancedUserInterface
      * @var string The hashed password
      * @ORM\Column(type="string")
      * @Assert\NotBlank
+     * @Groups({"patient"})
      */
     private $password;
 
     /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     * @Assert\NotBlank
+     * @Groups({"patient"})
+     * @Assert\Email()
+     */
+    private $email;
+
+    /**
      * @ORM\Column(type="string", length=255)
+     * @Assert\NotBlank
+     * @Groups({"patient"})
      */
     private $nom;
 
     /**
-     * @ORM\Column(type="boolean")
+     * @ORM\Column(type="string", length=255)
+     * @Assert\NotBlank
+     * @Groups({"patient"})
      */
-    private $isActive;
+    private $prenom;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Roles", inversedBy="users")
+     * @ORM\Column(type="string", length=255, nullable=true)
+     * @Groups({"patient"})
+     */
+    private $specialite;
+
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     * @Groups({"patient"})
+     */
+    private $tel;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Role", inversedBy="user")
+     * @Assert\NotBlank
+     * @ORM\JoinColumn(nullable=false)
+     * @Groups({"patient"})
      */
     private $role;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Partenaire", inversedBy="users")
+     * @ORM\Column(type="boolean")
+     * @Assert\NotBlank
+     * @Groups({"patient"})
      */
-    private $partenaire;
+    private $isActive;
 
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Depot", mappedBy="user")
+     * @ORM\Column(type="string", length=255)
+     * @Groups({"patient"})
+     * @Assert\NotBlank
      */
-    private $depots;
+    private $sexe;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\AffecterCompte", inversedBy="affecter")
+     * @ORM\Column(type="string", length=255)
+     * @Groups({"patient"})
+     * @Assert\NotBlank
      */
-    private $affecterCompte;
+    private $matricule;
 
-    
+    /**
+     * @ORM\OneToMany(targetEntity=Appointement::class, mappedBy="medecin")
+     */
+    private $appointements;
 
-    
+    /**
+     * @ORM\OneToMany(targetEntity=Patient::class, mappedBy="medecin", orphanRemoval=true)
+     */
+    private $patients;
+
+    /**
+     * @ORM\OneToOne(targetEntity=Profil::class, inversedBy="user", cascade={"persist", "remove"})
+     * @Groups({"patient"})
+     */
+    private $profil;
+
+    /**
+     * @ORM\OneToMany(targetEntity=PatientData::class, mappedBy="medecin", orphanRemoval=true)
+     */
+    private $patientData;
+
+    /**
+     * @ORM\OneToMany(targetEntity=Patient::class, mappedBy="medecin")
+     */
+    private $patient;
+
     public function __construct()
     {
-        $this->depots = new ArrayCollection();
-        $this->comptes = new ArrayCollection();
-       
+        $this->appointements = new ArrayCollection();
+        $this->patients = new ArrayCollection();
+        $this->patientData = new ArrayCollection();
+        $this->patient = new ArrayCollection();
     }
 
-    
     public function getId(): ?int
     {
         return $this->id;
@@ -102,10 +162,21 @@ class User implements AdvancedUserInterface
     /**
      * @see UserInterface
      */
-    public function getRoles(): array
+    public function getRole()
     {
-        
-        return array($this->role->getLibelle());
+        return [$this->role->getLibelle()];
+    }
+
+    public function getRoles()
+    {
+        return [$this->role->getLibelle()];
+    }
+
+    public function setRoles(array $roles): self
+    {
+        $this->roles = $roles;
+
+        return $this;
     }
 
     /**
@@ -140,6 +211,38 @@ class User implements AdvancedUserInterface
         // $this->plainPassword = null;
     }
 
+    public function isAccountNonExpired()
+    {
+        return true;
+    }
+
+    public function isAccountNonLocked()
+    {
+        return true;
+    }
+
+    public function isCredentialsNonExpired()
+    {
+        return true;
+    }
+
+    public function isEnabled()
+    {
+        return $this->isActive;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(?string $email): self
+    {
+        $this->email = $email;
+
+        return $this;
+    }
+
     public function getNom(): ?string
     {
         return $this->nom;
@@ -148,6 +251,49 @@ class User implements AdvancedUserInterface
     public function setNom(string $nom): self
     {
         $this->nom = $nom;
+
+        return $this;
+    }
+
+    public function getPrenom(): ?string
+    {
+        return $this->prenom;
+    }
+
+    public function setPrenom(string $prenom): self
+    {
+        $this->prenom = $prenom;
+
+        return $this;
+    }
+
+    public function getSpecialite(): ?string
+    {
+        return $this->specialite;
+    }
+
+    public function setSpecialite(?string $specialite): self
+    {
+        $this->specialite = $specialite;
+
+        return $this;
+    }
+
+    public function getTel(): ?int
+    {
+        return $this->tel;
+    }
+
+    public function setTel(?int $tel): self
+    {
+        $this->tel = $tel;
+
+        return $this;
+    }
+
+    public function setRole(?Role $role): self
+    {
+        $this->role = $role;
 
         return $this;
     }
@@ -164,94 +310,137 @@ class User implements AdvancedUserInterface
         return $this;
     }
 
-    public function setRole( $role): self
+    public function getSexe(): ?string
     {
-        $this->role = $role;
+        return $this->sexe;
+    }
+
+    public function setSexe(string $sexe): self
+    {
+        $this->sexe = $sexe;
 
         return $this;
     }
 
-    public function getRole(): ?Roles
+    public function getMatricule(): ?string
     {
-        return $this->role;
+        return $this->matricule;
     }
 
-    public function isAccountNonExpired(){
-        return true;
-    }
-    public function isAccountNonLocked(){
-        return true;
-    }
-    public function isCredentialsNonExpired(){
-        return true;
-    }
-    public function isEnabled(){
-        return $this->isActive;
-    }
-
-    /**
-     * Get the value of partenaire
-     */ 
-    public function getPartenaire()
+    public function setMatricule(string $matricule): self
     {
-        return $this->partenaire;
-    }
-
-    /**
-     * Set the value of partenaire
-     *
-     * @return  self
-     */ 
-    public function setPartenaire($partenaire)
-    {
-        $this->partenaire = $partenaire;
+        $this->matricule = $matricule;
 
         return $this;
     }
 
     /**
-     * @return Collection|Depot[]
+     * @return Collection|Appointement[]
      */
-    public function getDepots(): Collection
+    public function getAppointements(): Collection
     {
-        return $this->depots;
+        return $this->appointements;
     }
 
-    public function addDepot(Depot $depot): self
+    public function addAppointement(Appointement $appointement): self
     {
-        if (!$this->depots->contains($depot)) {
-            $this->depots[] = $depot;
-            $depot->setUser($this);
+        if (!$this->appointements->contains($appointement)) {
+            $this->appointements[] = $appointement;
+            $appointement->setMedecin($this);
         }
 
         return $this;
     }
 
-    public function removeDepot(Depot $depot): self
+    public function removeAppointement(Appointement $appointement): self
     {
-        if ($this->depots->contains($depot)) {
-            $this->depots->removeElement($depot);
+        if ($this->appointements->removeElement($appointement)) {
             // set the owning side to null (unless already changed)
-            if ($depot->getUser() === $this) {
-                $depot->setUser(null);
+            if ($appointement->getMedecin() === $this) {
+                $appointement->setMedecin(null);
             }
         }
 
         return $this;
-    }   
-
-    public function getAffecterCompte(): ?AffecterCompte
-    {
-        return $this->affecterCompte;
     }
 
-    public function setAffecterCompte(?AffecterCompte $affecterCompte): self
+    /**
+     * @return Collection|Patient[]
+     */
+    public function getPatients(): Collection
     {
-        $this->affecterCompte = $affecterCompte;
+        return $this->patients;
+    }
+
+    public function addPatient(Patient $patient): self
+    {
+        if (!$this->patients->contains($patient)) {
+            $this->patients[] = $patient;
+            $patient->setMedecin($this);
+        }
 
         return $this;
     }
-   
-     
 
+    public function removePatient(Patient $patient): self
+    {
+        if ($this->patients->removeElement($patient)) {
+            // set the owning side to null (unless already changed)
+            if ($patient->getMedecin() === $this) {
+                $patient->setMedecin(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getProfil(): ?Profil
+    {
+        return $this->profil;
+    }
+
+    public function setProfil(?Profil $profil): self
+    {
+        $this->profil = $profil;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|PatientData[]
+     */
+    public function getPatientData(): Collection
+    {
+        return $this->patientData;
+    }
+
+    public function addPatientData(PatientData $patientData): self
+    {
+        if (!$this->patientData->contains($patientData)) {
+            $this->patientData[] = $patientData;
+            $patientData->setMedecin($this);
+        }
+
+        return $this;
+    }
+
+    public function removePatientData(PatientData $patientData): self
+    {
+        if ($this->patientData->removeElement($patientData)) {
+            // set the owning side to null (unless already changed)
+            if ($patientData->getMedecin() === $this) {
+                $patientData->setMedecin(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Patient[]
+     */
+    public function getPatient(): Collection
+    {
+        return $this->patient;
+    }
 }

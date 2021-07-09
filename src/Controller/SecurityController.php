@@ -2,472 +2,377 @@
 
 namespace App\Controller;
 
-use App\Entity\Partenaire as EntityPartenaire;
+use App\Entity\Profil;
+use App\Entity\Role;
 use App\Entity\User;
-use App\Repository\PartenaireRepository;
-use App\Repository\RolesRepository;
+use App\Repository\ProfilRepository;
+use App\Repository\RoleRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Proxies\__CG__\App\Entity\Roles as EntityRoles;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Symfony\Component\Serializer\SerializerInterface;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-
-    /**
-     * @Route("/api")
-     */
+/**
+ * @Route("/api")
+ */
 class SecurityController extends AbstractController
 {
-   
+    public function generer_matricule($long = 5)
+    {
+        $numero = '';
+        for ($i = 0; $i < $long; ++$i) {
+            $array = ['1', '0', '8', '7', '2', '3', 'n', '3', '5', '6', 'a', '8', '9', '0', '1', 'm'];
+            $numero .= $array[rand(0, 14)];
+        }
+
+        return $numero;
+    }
 
     /**
      * @Route("/users", methods={"GET"})
      */
-    public function findUsers(UserRepository $userRep,SerializerInterface $serializer,RolesRepository $repRole,EntityManagerInterface $entityManager)
+    public function findUsers(UserRepository $userRep)
     {
+        return $this->json($userRep->findAll(), 200, [], ['groups' => 'patient']);
+    }
 
-        $user=$this->getUser();
-        $rolesUser=$user->getRoles();
-        $userRole=$repRole->findBy(array("libelle"=>"ROLE_USER"));
-        $adminRole=$repRole->findBy(array("libelle"=>["ROLE_ADMIN","ROLE_USER",]));
-        $userPartRole=$repRole->findOneByLibelle("ROLE_USER_PARTENAIRE");
-        $adminPartRole=$repRole->findOneByLibelle("ROLE_ADMIN_PARTENAIRE");
-        
-        //var_dump($partId->getRoles());die;
-        if ($rolesUser[0]==="ROLE_ADMIN"){ 
-            $user= $userRep->find($userRole[0]->getId());
-            $data=$serializer->serialize($user,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
-            return new JsonResponse($data,Response::HTTP_OK,[],true);
-            
-        }else if ($rolesUser[0]==="ROLE_SUPER_ADMIN"){ 
-            
-            $user1= $userRep->find($adminRole[1]->getId());
-            $user2= $userRep->find($adminRole[0]->getId());
-            
-            $data1=$serializer->serialize($user1,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
-            $data2=$serializer->serialize($user2,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
+    /**
+     * @Route("/profil/{id}", methods={"GET"})
+     */
+    public function findProfilById(ProfilRepository $profil, $id)
+    {
+        //AVOIR AU MOINS LE ROLE_ADMIN POUR AFFICHER LES USERS
+        $this->denyAccessUnlessGranted('ROLE_SECRETAIRE', null, 'Accès non autorisé');
 
-            return new JsonResponse(($data1.$data2),Response::HTTP_OK,[],true);
-        }else if ($rolesUser[0]==="ROLE_ADMIN_PARTENAIRE"){ 
-                            
-            $idUserConnect= $user->getId();
-			$partId = $entityManager->getRepository(User::class)->find(intVal($idUserConnect));
-			$idPartenaire= $partId->getPartenaire()->getId();
-            $user= $userRep->findUserPart($idPartenaire,$userPartRole->getId());
-            //var_dump($idPartenaire);die;
-            $data=$serializer->serialize($user,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
-            return new JsonResponse($data,Response::HTTP_OK,[],true);
-            
-        }else if ($rolesUser[0]==="ROLE_PARTENAIRE"){ 
-            
-            $idUserConnect= $user->getId();
-			$partId = $entityManager->getRepository(User::class)->find(intVal($idUserConnect));
-			$idPartenaire= $partId->getPartenaire()->getId();
-            $user1= $userRep->findUserPart($idPartenaire,$adminPartRole->getId());
-            $user2= $userRep->findUserPart($idPartenaire,$userPartRole->getId());
-            //var_dump($user2[0]->getId());die;
-            $data1=$serializer->serialize($user1,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
-            $data2=$serializer->serialize($user,"json", [
-                'circular_reference_handler' => function ($object) {
-                    return $object->getId();
-                }
-            ]);
-            
+        $file = $profil->find($id);
 
-            return new JsonResponse(($data1),Response::HTTP_OK,[],true);
+        if ($file == null) {
+            return $this->json(['status' => 400, 'message' => 'Profile introuvable']);
         }
-        return new JsonResponse("",Response::HTTP_OK,[],true);
-        
-    }
-   
 
-    /**
-     * @Route("/roles", methods={"GET"})
-     */
-    public function findRoles(RolesRepository $rolesRepository,SerializerInterface $serializer){
-
-        $user=$this->getUser();
-        $rolesUser=$user->getRoles();
-        
-        if ($rolesUser[0]==="ROLE_ADMIN") {
-            # code...
-            $role=$rolesRepository->findBy(array("libelle"=>"ROLE_USER"));
-
-            $data=$serializer->serialize($role,"json");
-            return new JsonResponse($data,Response::HTTP_OK,[],true);
-       }elseif ($rolesUser[0]==="ROLE_SUPER_ADMIN") {
-           # code...
-           $role=$rolesRepository->findBy(array("libelle"=>["ROLE_USER","ROLE_ADMIN"]));
-
-            $data=$serializer->serialize($role,"json");
-            return new JsonResponse($data,Response::HTTP_OK,[],true);
-       }elseif ($rolesUser[0]==="ROLE_PARTENAIRE") {
-        # code...
-        $role=$rolesRepository->findBy(array("libelle"=>["ROLE_USER_PARTENAIRE","ROLE_ADMIN_PARTENAIRE"]));
-
-         $data=$serializer->serialize($role,"json");
-         return new JsonResponse($data,Response::HTTP_OK,[],true);
-       }elseif ($rolesUser[0]==="ROLE_ADMIN_PARTENAIRE") {
-        # code...
-        $role=$rolesRepository->findBy(array("libelle"=>"ROLE_USER_PARTENAIRE"));
-
-         $data=$serializer->serialize($role,"json");
-         return new JsonResponse($data,Response::HTTP_OK,[],true);
-    }
-
-        return new JsonResponse('',Response::HTTP_OK,[],true);
-
+        return new BinaryFileResponse(($file));
     }
 
     /**
-     * @Route("/partenaire", methods={"GET"})
+     * @Route("/profil/{id}", methods={"DELETE"})
      */
-    public function partenaireUsers(PartenaireRepository $partRep,SerializerInterface $serializer)
+    public function deleteProfile(EntityManagerInterface $entityManager, $id, ProfilRepository $profilRepository)
     {
-        //AVOIR AU MOINS LE ROLE_ADMIN POUR AFFICHER LES PARTENAIRES
-        $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"role incorrect");
-        
-        $user= $partRep->findAll();
-        $data=$serializer->serialize($user,"json", [
-            'circular_reference_handler' => function ($object) {
-                return $object->getId();
+        //AVOIR AU MOINS LE ROLE_SECRETAIRE POUR SUPPRIMER LE PATIENT
+        $this->denyAccessUnlessGranted('ROLE_SECRETAIRE', null, 'Accès non autorisé ');
+
+        $profil = $profilRepository->find($id);
+
+        if ($profil) {
+            $entityManager->remove($profil);
+            $entityManager->flush();
+
+            return $this->json(['status' => 201, 'message' => 'Profile supprimé']);
+        }
+
+        return $this->json(['status' => 401, 'message' => "Profile n'existe pas"]);
+    }
+
+    /**
+     * @Route("/profil", methods={"POST"})
+     */
+    public function addProfile(Request $request, EntityManagerInterface $entityManager)
+    {
+        //AVOIR AU MOINS LE ROLE_ADMIN POUR AFFICHER LES USERS
+        $this->denyAccessUnlessGranted('ROLE_SECRETAIRE', null, 'Accès non autorisé');
+
+        $profil = new Profil();
+
+        $profil->setImageFile($request->files->get('image'));
+        $profil->setUpdatedAt(new \DateTime());
+        $entityManager->persist($profil);
+        $entityManager->flush();
+
+        $userProfile = $entityManager->getRepository(Profil::class)->find(intval($profil->getId()));
+
+        $this->getUser()->setProfil($userProfile);
+        $entityManager->flush();
+
+        return $this->json(['status' => 201, 'message' => 'Profile ajouté']);
+    }
+
+    /**
+     * @Route("/users/{id}", methods={"GET"})
+     */
+    public function findUsersById($id, UserRepository $userRep)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR RECUPERER UN USER PAR SON ID
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        return $this->json($userRep->find($id), 200, [], ['groups' => 'patient']);
+    }
+
+    /**
+     * @Route("/users/{id}", methods={"DELETE"})
+     */
+    public function deleteUser($id, UserRepository $userRep, EntityManagerInterface $entityManager)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR SUPPRIMER UN USER
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        $users = $userRep->find($id);
+
+        try {
+            if ($users == null) {
+                return $this->json(['status' => 400, 'message' => "Cet utilisateur n'existe pas"]);
             }
-        ]);
-        return new JsonResponse($data,Response::HTTP_OK,[],true);
+
+            $entityManager->remove($users);
+            $entityManager->flush();
+
+            return $this->json(['status' => 201, 'message' => 'utilisateur supprime']);
+        } catch (NotEncodableValueException $e) {
+            return $this->json(['status' => 400, 'message' => $e->getMessage()]);
+        }
+
+        return $this->json(['status' => 400, 'message' => "Cet utilisateur n'existe pas"]);
     }
 
     /**
-     * @Route("/register", name="register", methods={"POST"})
-     * @category
+     * @Route("/users", name="adduser", methods={"POST"})
      */
-    public function register(Request $request, UserPasswordEncoderInterface $passwordEncoder,EntityManagerInterface $entityManager)
+    public function addUser(Request $request, EntityManagerInterface $entityManager,
+                                UserPasswordEncoderInterface $encoder, ValidatorInterface $validator)
     {
-        //AJOUTER LES UTILISATEURS
-       
+        //AVOIR  LE ROLE_ADMIN POUR AJOUTER UN USER
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
         $values = json_decode($request->getContent());
-       
-        if(isset($values->username,$values->password,$values->nom,$values->role_id,$values->isActive,$values->partenaire_id)) 
-        {
-            //EXTRAIRE LES DONNEES NUMERIQUES DE LA CHAINE /api/roles/numero
-           
-            $role_id=intval( preg_replace('~[^0-9]~', '', $values->role_id)); 
-            $userRole = $entityManager->getRepository(EntityRoles::class)->find(intVal($role_id));
-            $userConnect=$this->getUser();
-            
-            $user = new User();
-            $user->setNom($values->nom);
-            $user->setUsername($values->username);
-            $user->setIsActive($values->isActive);
-            $user->setPassword($passwordEncoder->encodePassword($user, $values->password));
-            $user->setRole($userRole);
-     
-            
-             if ($user->getRoles()==["ROLE_ADMIN"]) {
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN',null,"Vous n'avez les droits requis  pour ajouter un admin");
-            
-                $entityManager->persist($user);
-                $entityManager->flush();
-                
-                $data = [
-                    'status' => 200,
-                    'message' => 'L\'utilisateur a été créé'
-                ];
-                return new JsonResponse($data);
+        if (isset($values->nom,$values->role,$values->username,$values->email,$values->sexe,$values->prenom,$values->password)) {
+            try {
+                $role_id = intval(preg_replace('~[^0-9]~', '', $values->role));
+                $role = $entityManager->getRepository(Role::class)->find(intval($role_id));
 
-             }else if ($user->getRoles()==["ROLE_USER"]) {
-                 # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous n'avez les droits requis");
-            
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'L\'utilisateur a été créé'
-                ];
-                return new JsonResponse($data);
+                $users = new User();
 
-             }elseif ($user->getRoles()==["ROLE_PARTENAIRE"]) {
-                 # code...
-                 $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous n'avez pas les droits requis");
-            
-                 $part_id=intval( preg_replace('~[^0-9]~', '', $values->partenaire_id)); 
-                 $partenaire_id = $entityManager->getRepository(EntityPartenaire::class)->find(intVal($part_id));
-                 if (!$partenaire_id) 
-                 {
-                     # code...
-                     $data = [
-                        'status' => 200,
-                        'message' => 'Partenaire n\'existe pas'
-                    ];
-                    return new JsonResponse($data);
-                 }
-                 $user->setPartenaire($partenaire_id);
+                $users->setPrenom($values->prenom);
+                $users->setNom($values->nom);
+                $users->setUsername($values->username);
+                $users->setEmail($values->email);
+                $users->setPassword($encoder->encodePassword($users, $values->password));
+                $users->setRole($role);
+                $users->setSexe($values->sexe);
+                $users->setTel($values->tel);
+                $users->setIsActive(true);
+                $users->setMatricule('kds'.$this->generer_matricule());
 
-                 $entityManager->persist($user);
-                 $entityManager->flush();
-                 $data = [
-                    'status' => 200,
-                    'message' => 'Le partenaire a été créé'
-                ];
-                return new JsonResponse($data);
-
-             }elseif ($user->getRoles()==["ROLE_SUPER_ADMIN"]){
-                # code...
-
-                $data = [
-                   'status' => 200,
-                   'message' => 'Vous n\'avez pas le droit de créer un SUPEUR_ADMIN'
-               ];
-               return new JsonResponse($data);
-               
-            }elseif ($user->getRoles()==["ROLE_ADMIN_PARTENAIRE"]) {
-                # code...
-               
-                $this->denyAccessUnlessGranted("ROLE_PARTENAIRE",null,"Vous ne pouvais pas ajouter un admin partenaire");
-                
-                $part_id=intval( preg_replace('~[^0-9]~', '', $values->partenaire_id)); 
-                $partenaire_id = $entityManager->getRepository(EntityPartenaire::class)->find(intVal($part_id));
-                if (!$partenaire_id) {
-                    # code...
-                    $data = [
-                       'status' => 200,
-                       'message' => 'Partenaire n\'existe pas'
-                   ];
-                   return new JsonResponse($data);
+                if (isset($values->specialite)) {
+                    $users->setSpecialite($values->specialite);
                 }
-                $user->setPartenaire($partenaire_id);
-                $entityManager->persist($user);
-                $entityManager->flush();
-               
-                $data = [
-                   'status' => 200,
-                   'message' => 'L\'utilisateur a été créé'
-               ];
-               return new JsonResponse($data);
-               
-              }elseif ( $user->getRoles()==["ROLE_USER_PARTENAIRE"] ) {
-                # code...
-                $this->denyAccessUnlessGranted("ROLE_ADMIN_PARTENAIRE",null,"Vous ne pouvais pas ajouter un user partenaire");
 
-                $part_id=intval( preg_replace('~[^0-9]~', '', $values->partenaire_id)); 
-                $partenaire_id = $entityManager->getRepository(EntityPartenaire::class)->find(intVal($part_id));
-                if (!$partenaire_id) {
-                    # code...
-                    $data = [
-                       'status' => 200,
-                       'message' => 'Partenaire n\'existe pas'
-                   ];
-                   return new JsonResponse($data);
+                $erreur = $validator->validate($users);
+                if (count($erreur) > 1) {
+                    return $this->json(['status' => 400, 'message' => 'Donées saisie incorrect']);
                 }
-                $user->setPartenaire($partenaire_id);
-                $entityManager->persist($user);
+                $entityManager->persist($users);
                 $entityManager->flush();
-               
-                $data = [
-                   'status' => 200,
-                   'message' => 'L\'utilisateur a été créé'
-               ];
-               return new JsonResponse($data);
-              }
-            
-        }
-            $data = [
-                'status' => 200,
-                'message' => 'Donnees invalides'
-            ];
 
-            return new JsonResponse($data);
-    }
-    
-    /**
-     * @Route("/disUnable/{id}", methods={"PUT"})
-     */
-     public function disableUnableUser($id,UserRepository $userRepository,EntityManagerInterface $entityManager)
-     {
-        //ACTIVER OU DESACTIVER USERS OU PARTENAIRE
-        
-        $user=$userRepository->find($id);
-        if(!empty($user))
-        {
-            $user=$userRepository->find($id);
-            $role=$user->getRoles();   
-            if ($user->getIsActive()===true && $role==["ROLE_ADMIN"]) {
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN',null,"Vous ne pouvez pas bloquer un admin system");
-
-                $user->setIsActive(false);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                        'status' => 200,
-                        'message' => 'Utilisateur bloquer avec succes'
-                    ];
-
-                    return new JsonResponse($data, 200);
-
-            }else  if ($user->getIsActive()===false && $role==["ROLE_ADMIN"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN',null,"Vous ne pouvez pas debloquer un admin  system");
-
-                $user->setIsActive(true);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur debloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-
-            }else  if ($user->getIsActive()===false && $role==["ROLE_USER"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous ne pouvez pas debloquer un utilisateur");
-
-                $user->setIsActive(true);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur debloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-
-            }else  if ($user->getIsActive()===true && $role==["ROLE_USER"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous ne pouvez pas bloquer un utilisateur");
-
-                $user->setIsActive(false);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur bloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-            }else  if ($user->getIsActive()===false && $role==["ROLE_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous ne pouvez pas debloquer un partenaire");
-
-                $user->setIsActive(true);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Partenaire debloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-
-            }else  if ($user->getIsActive()===true && $role==["ROLE_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN',null,"Vous ne pouvez pas bloquer un partenaire");
-
-                $user->setIsActive(false);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Partenaire bloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-            }else  if ($user->getIsActive()===true && $role==["ROLE_ADMIN_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_PARTENAIRE',null,"Vous ne pouvez pas bloquer un admin partenaire");
-
-                $user->setIsActive(false);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur bloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-            }else  if ($user->getIsActive()===false && $role==["ROLE_ADMIN_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_PARTENAIRE',null,"Vous ne pouvez pas debloquer un user partenaire");
-
-                $user->setIsActive(true);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur debloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-
-            }else  if ($user->getIsActive()===true && $role==["ROLE_USER_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN_PARTENAIRE',null,"Vous ne pouvez pas bloquer un user partenaire");
-
-                $user->setIsActive(false);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur bloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-            }else  if ($user->getIsActive()===false && $role==["ROLE_USER_PARTENAIRE"]){
-                # code...
-                $this->denyAccessUnlessGranted('ROLE_ADMIN_PARTENAIRE',null,"Vous ne pouvez pas debloquer un user partenaire");
-
-                $user->setIsActive(true);
-                $entityManager->persist($user);
-                $entityManager->flush();
-                $data = [
-                    'status' => 200,
-                    'message' => 'Utilisateur debloquer avec succes'
-                ];
-
-                return new JsonResponse($data, 200);
-
+                return $this->json($users, 201, [], ['groups' => 'patient']);
+            } catch (NotEncodableValueException $e) {
+                return $this->json([
+                        'status' => 400,
+                        'message' => $e->getMessage(),
+                    ]);
             }
+        } else {
+            return $this->json(['status' => 400, 'message' => 'Données incorrecte']);
         }
-        else{
-            $data = [
-                'status' => 200,
-                'message' => 'Cette identifiant n\'existe'
-            ];
-            return new JsonResponse($data, 500,);
-        }        
-            $data = [
-                'status' => 200,
-                'message' => 'Vous ne pouvez pas bloquer ou debloquer un SUPER_ADMIN'
-            ];
-            return new JsonResponse($data);
+
+        return $this->json(['status' => 400, 'message' => ' oups quelque chose ne va pas']);
     }
-     
-    
+
+    /**
+     * @Route("/users/update/{id}", name="update.user",  methods={"PUT"})
+     */
+    public function updateUser($id, UserRepository $userRep, EntityManagerInterface $entityManager, Request $request, UserPasswordEncoderInterface $encoder, ValidatorInterface $validator)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR MODIFIER UN USER
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        $users = $userRep->find($id);
+
+        $values = json_decode($request->getContent());
+
+        if ($users && isset($values->nom,$values->role,$values->username,$values->email,$values->sexe,$values->prenom)) {
+            try {
+                $role_id = intval(preg_replace('~[^0-9]~', '', $values->role));
+                $role = $entityManager->getRepository(Role::class)->find(intval($role_id));
+
+                $users->setPrenom($values->prenom);
+                $users->setNom($values->nom);
+                $users->setUsername($values->username);
+                $users->setEmail($values->email);
+                $users->setRole($role);
+                $users->setSexe($values->sexe);
+                $users->setSpecialite($values->specialite);
+                $users->setTel($values->tel);
+                $users->setMatricule($users->getMatricule());
+
+                if (isset($values->password)) {
+                    $users->setPassword($encoder->encodePassword($users, $values->password));
+                }
+
+                $erreur = $validator->validate($users);
+                if (count($erreur) > 1) {
+                    return $this->json(['status' => 400, 'message' => 'Données saisie manquante']);
+                }
+                $entityManager->persist($users);
+                $entityManager->flush();
+
+                return $this->json($users, 201, [], ['groups' => 'patient']);
+            } catch (NotEncodableValueException $e) {
+                return $this->json([
+                        'status' => 400,
+                        'message' => $e->getMessage(),
+                    ]);
+            }
+        } else {
+            return $this->json(['status' => 400, 'message' => 'Données saisie incorrect']);
+        }
+
+        return $this->json(['status' => 400, 'message' => " Ce utilisateur n'existe pas"]);
+    }
+
+    /**
+     * @Route("/roles", name="roles", methods={"GET"})
+     */
+    public function findRoles(RoleRepository $roleRepository, SerializerInterface $serializer)
+    {
+        //AVOIR LE ROLE_ADMIN POUR AFFICHER LES ROLES
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        return $this->json($roleRepository->findAll(), 200, [], ['groups' => 'patient']);
+    }
+
+    /**
+     * @Route("/roles/{id}", name="role.id", methods={"GET"})
+     */
+    public function findRolesById($id, RoleRepository $roleRepository, SerializerInterface $serializer)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR AFFICHER LE ROLE PAR SON ID
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        return $this->json($roleRepository->find($id), 200, [], ['groups' => 'patient']);
+    }
+
+    /**
+     * @Route("/roles/{id}", name="update.role", methods={"PUT"})
+     */
+    public function updateRoles($id, RoleRepository $roleRep, EntityManagerInterface $entityManager, Request $request, ValidatorInterface $validator)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR MODIFIER LE ROLE
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+
+        $roles = $roleRep->find($id);
+
+        $values = json_decode($request->getContent());
+
+        if ($roles != null && $values->libelle != null) {
+            try {
+                $roles->setLibelle($values->libelle);
+
+                $entityManager->persist($roles);
+                $entityManager->flush();
+
+                return $this->json($roles, 201, [], ['groups' => 'patient']);
+            } catch (NotEncodableValueException $e) {
+                return $this->json([
+                        'status' => 400,
+                        'message' => $e->getMessage(),
+                    ]);
+            }
+        } else {
+            return $this->json(['status' => 400, 'message' => 'Données saisie incorrect']);
+        }
+
+        return $this->json(['status' => 400, 'message' => " Ce role n'existe pas"]);
+    }
+
+    /**
+     * @Route("/users/disunable/{id}", methods={"PUT"})
+     */
+    public function disUnableUser($id, UserRepository $userRepository, EntityManagerInterface $entityManager)
+    {
+        //AVOIR  LE ROLE_ADMIN POUR MODIFIER LE ROLE
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Accès non autorisé');
+        $userConnect = $this->getUser()->getRoles();
+        $user = $userRepository->find($id);
+
+        if ($user == null) {
+            return $this->json(['status' => 400, 'message' => " Ce utilisateur n'existe pas"]);
+        }
+
+        $role = $user->getRoles();
+
+        if ($userConnect[0] == 'ROLE_ADMIN' && $role[0] == 'ROLE_ADMIN') {
+            return $this->json(['status' => 400, 'message' => ' Vous ne pouvez pas bloquer ou debloquer un admin']);
+        } elseif ($user->getIsActive() === true) {
+            $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Vous ne pouvez pas bloquer un utilisateur');
+
+            $user->setIsActive(false);
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return $this->json(['status' => 400, 'message' => 'Utilisateur bloquer avec succes']);
+        } elseif ($user->getIsActive() === false) {
+            $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Vous ne pouvez pas debloquer un utilisateur');
+
+            $user->setIsActive(true);
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return $this->json(['status' => 400, 'message' => 'Utilisateur debloquer avec succes']);
+        }
+
+        return $this->json(['status' => 400, 'message' => 'Utilisateur introuvable']);
+    }
+
+    /**
+     * @Route("/update/login/{id}", methods={"PUT"})
+     */
+    public function updateLogin($id, UserRepository $userRepository, EntityManagerInterface $entityManager, Request $request, UserPasswordEncoderInterface $encoder)
+    {
+        $user = $userRepository->find($id);
+        $values = json_decode($request->getContent());
+
+        if (isset($values->newPassword,$values->currentPassword)) {
+            $matchCurrentPassword = $encoder->isPasswordValid($user, $values->currentPassword);
+            $matchNewPassword = $encoder->isPasswordValid($user, $values->newPassword);
+
+            if ((bool) $matchCurrentPassword && (bool) !$matchNewPassword) {
+                $user->setPassword($encoder->encodePassword($user, $values->newPassword));
+                if (isset($values->username) && $values->username != $user->getUsername) {
+                    $user->setUsername($values->username);
+                }
+                $entityManager->persist($user);
+                $entityManager->flush();
+
+                return $this->json(['status' => 200, 'message' => 'Password modifié']);
+            } elseif ((bool) $matchNewPassword) {
+                return $this->json(['status' => 401, 'message' => 'Choisir un password diffrent']);
+            }
+
+            return $this->json(['status' => 401, 'message' => 'Password actuel incorrect']);
+        }
+
+        return $this->json(['status' => 400, 'message' => 'Données saisi incorrect']);
+    }
+
+    /**
+     * @Route("/connect", methods={"GET"})
+     */
+    public function login()
+    {
+        return $this->json($this->getUser(), 200, [], ['groups' => 'patient']);
+    }
 }

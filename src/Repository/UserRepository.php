@@ -19,22 +19,53 @@ class UserRepository extends ServiceEntityRepository
         parent::__construct($registry, User::class);
     }
 
-    // /**
-    //  * @return User[] Returns an array of User objects
-    //  */
-   
-    public function findUserPart($idPart,$idRole)
+    public function findByRoles()
+    {
+        $em = $this->getDoctrine()->getManager();
+        $qb = $em->createQueryBuilder();
+        $qb->select('u')->from('AppBundle:User', 'u')->where('u.role LIKE :role')->setParameter('role', '%"'.'ROLE_MEDECIN'.'"%');
+
+        return   $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @return array
+     */
+    public function findOneBySome()
+    {
+        // $qb = $this->_em->createQueryBuilder();
+        // $qb->select('u')
+        // ->from(User, 'u')
+        // ->where('u.role LIKE :role')
+        // ->setParameter('role', '%"'.$role.'"%');
+
+        // return $qb->getQuery()->getResult();
+
+        $query = $this->getDoctrine()->getEntityManager()
+            ->createQuery(
+                'SELECT u FROM MyBundle:User u WHERE u.role LIKE :role'
+            )->setParameter('role', '%"ROLE_MEDECIN"%');
+
+        return $query->getResult();
+    }
+
+    /*
+     * @return User[] Returns an array of User objects
+     */
+    //  /*
+    public function findOneByrole()
     {
         return $this->createQueryBuilder('u')
-        ->where("u.partenaire =?1")
-        ->andWhere("u.role =?2")
-        ->setParameter(1, $idPart)
-        ->setParameter(2, $idRole)
-        ->getQuery()
-        ->getResult();
+            ->andWhere('u.role = :val')
+            ->setParameter('val', 'ROLE_MEDECIN')
+         //   ->orderBy('u.id', 'ASC')
+          //  ->setMaxResults(10)
+            ->getQuery()
+            ->getResult()
         ;
     }
-    
+
+    //   */
 
     /*
     public function findOneBySomeField($value): ?User

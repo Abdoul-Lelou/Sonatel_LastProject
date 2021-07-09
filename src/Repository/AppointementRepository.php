@@ -2,25 +2,25 @@
 
 namespace App\Repository;
 
-use App\Entity\AffecterCompte;
+use App\Entity\Appointement;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Persistence\ManagerRegistry;
 
 /**
- * @method AffecterCompte|null find($id, $lockMode = null, $lockVersion = null)
- * @method AffecterCompte|null findOneBy(array $criteria, array $orderBy = null)
- * @method AffecterCompte[]    findAll()
- * @method AffecterCompte[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method Appointement|null find($id, $lockMode = null, $lockVersion = null)
+ * @method Appointement|null findOneBy(array $criteria, array $orderBy = null)
+ * @method Appointement[]    findAll()
+ * @method Appointement[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
-class AffecterCompteRepository extends ServiceEntityRepository
+class AppointementRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, AffecterCompte::class);
+        parent::__construct($registry, Appointement::class);
     }
 
     // /**
-    //  * @return AffecterCompte[] Returns an array of AffecterCompte objects
+    //  * @return Appointement[] Returns an array of Appointement objects
     //  */
     /*
     public function findByExampleField($value)
@@ -36,15 +36,15 @@ class AffecterCompteRepository extends ServiceEntityRepository
     }
     */
 
-    /*
-    public function findOneBySomeField($value): ?AffecterCompte
+    
+    public function findOneByPatient($value): ?Appointement
     {
         return $this->createQueryBuilder('a')
-            ->andWhere('a.exampleField = :val')
+            ->andWhere('a.patient = :val')
             ->setParameter('val', $value)
             ->getQuery()
             ->getOneOrNullResult()
         ;
     }
-    */
+    
 }
